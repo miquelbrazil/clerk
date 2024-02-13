@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/config/paths.php';
+
+use Symfony\Component\Console\Application;
+use App\Command\ParseStatement;
+
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->load();
+
+$cli = new Application();
+
+$cli->add(new ParseStatement());
+
+$cli->run();

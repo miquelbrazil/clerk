@@ -1,0 +1,23 @@
+name: Accounting Tools
+env_file:
+  - .env
+services:
+  app:
+    type: php:8.1
+    via: cli
+    composer_version: 2
+    build:
+      - composer update
+    config:
+      php: .lando/php/php.ini
+tooling:
+  php:
+    service: app
+    cmd: php
+  composer:
+    service: app
+    cmd: composer
+    description: "Run Composer commands"
+  console:
+    service: app
+    cmd: bin/console
