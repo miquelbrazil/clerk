@@ -1,6 +1,7 @@
 # Security
 ###############################################################################
 *.env
+!.env.example
 /config/.env
 
 # Framework
@@ -11,11 +12,24 @@
 ###############################################################################
 /config/participants.json
 
-# Directories
+# Working directories
 ###############################################################################
-/tmp/
-/logs/
+# Real inputs and outputs NEVER leave these directories (or B2).
+# See CLAUDE.md — Hard Rules: Privacy.
+/data/*
+!/data/.gitkeep
+/output/*
+!/output/.gitkeep
+/logs/*
+!/logs/.gitkeep
+/tmp/*
+!/tmp/.gitkeep
 /cache/
+
+# Phase 0 history-scrub working files. These contain the literal private
+# strings being removed from history — committing them would defeat the
+# scrub. See docs/scrub-verification.md.
+/.scrub/
 
 # Operating System Files
 ###############################################################################

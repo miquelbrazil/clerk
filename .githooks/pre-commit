@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+#
+# Clerk pre-commit guard. This is a PUBLIC repository holding tooling for
+# PRIVATE financial data — see CLAUDE.md, "Hard Rules — Privacy".
+#
+# Enable once per clone:
+#     git config core.hooksPath .githooks
+#
+# Two layers run against the staged patch:
+#   1. gitleaks  — secrets + the repo-specific privacy rules in .gitleaks.toml
+#   2. tripwire  — a dependency-free grep for the handful of literals that
+#                  must never reappear (survives gitleaks not being installed)
+#
+# Emergency bypass (think hard first): git commit --no-verify
+
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root" || exit 1
+
+fail=0
+
+printf '\033[1m[pre-commit]\033[0m scanning staged changes...\n'
+
+# --- Layer 1: gitleaks ------------------------------------------------------
+if command -v gitleaks >/dev/null 2>&1; then
+    if ! gitleaks protect --staged --redact --config .gitleaks.toml --no-banner; then
+        printf '\033[31m[pre-commit] gitleaks flagged the staged changes.\033[0m\n'
+        fail=1
+    fi
+else
+    printf '\033[33m[pre-commit] gitleaks not installed — secret scan SKIPPED.\033[0m\n'
+    printf '             Install it: brew install gitleaks\n'
+    if [ "${CLERK_ALLOW_MISSING_GITLEAKS:-0}" != "1" ]; then
+        printf '\033[31m[pre-commit] refusing to commit without a secret scan.\033[0m\n'
+        printf '             Override once: CLERK_ALLOW_MISSING_GITLEAKS=1 git commit ...\n'
+        fail=1
+    fi
+fi
+
+# --- Layer 2: tripwire ------------------------------------------------------
+# Literals scrubbed from history in Phase 0. Their reappearance in a commit is
+# always a defect, never a false positive.
+tripwire_patterns=(
+    '/Users/[A-Za-z0-9._-]+/'
+    'CloudStorage'
+    'GoogleDrive-'
+    '/My Drive/'
+    'phpinfo\(\)'
+    'ioncube_loader'
+)
+
+# The files that DEFINE these patterns necessarily contain them; exclude them
+# rather than weakening the patterns.
+staged_diff="$(git diff --cached --diff-filter=ACMR -U0 -- . \
+    ':(exclude).gitleaks.toml' \
+    ':(exclude).githooks/pre-commit' \
+    ':(exclude)docs/scrub-verification.md')"
+
+for pattern in "${tripwire_patterns[@]}"; do
+    # Only added lines (leading '+', excluding the '+++' file header).
+    if hits="$(printf '%s\n' "$staged_diff" | grep -E '^\+' | grep -Ev '^\+\+\+' | grep -En "$pattern")"; then
+        printf '\033[31m[pre-commit] privacy tripwire: %s\033[0m\n' "$pattern"
+        printf '%s\n' "$hits" | head -5 | sed 's/^/             /'
+        fail=1
+    fi
+done
+
+# --- Layer 3: binaries ------------------------------------------------------
+# Large binaries in a public repo are almost always an accident (the ionCube
+# loaders were 1.2 MB each) and they are expensive to scrub later.
+while IFS= read -r file; do
+    [ -f "$file" ] || continue
+    size="$(wc -c <"$file" | tr -d ' ')"
+    if [ "$size" -gt 1048576 ]; then
+        printf '\033[31m[pre-commit] file over 1 MB: %s (%s bytes)\033[0m\n' "$file" "$size"
+        fail=1
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ "$fail" -ne 0 ]; then
+    printf '\033[31m[pre-commit] COMMIT BLOCKED.\033[0m If a finding is a false positive,\n'
+    printf '             allowlist it in .gitleaks.toml rather than bypassing the hook.\n'
+    exit 1
+fi
+
+printf '\033[32m[pre-commit] clean.\033[0m\n'
+exit 0

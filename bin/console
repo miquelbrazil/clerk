@@ -6,8 +6,10 @@ require dirname(__DIR__) . '/config/paths.php';
 use Symfony\Component\Console\Application;
 use App\Command\ParseStatement;
 
+// safeLoad(): a fresh clone has no .env, and secrets are injected at runtime
+// (Infisical) rather than read from disk. See docs/decisions.md D-005 / D-013.
 $dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->load();
+$dotenv->safeLoad();
 
 $cli = new Application();
 
