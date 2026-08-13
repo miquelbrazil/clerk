@@ -1,4 +1,4 @@
-name: Accounting Tools
+name: clerk
 env_file:
   - .env
 services:

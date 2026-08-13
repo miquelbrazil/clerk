@@ -1,6 +1,7 @@
 # Security
 ###############################################################################
 *.env
+!.env.example
 /config/.env
 
 # Framework
@@ -11,10 +12,18 @@
 ###############################################################################
 /config/participants.json
 
-# Directories
+# Working directories
 ###############################################################################
-/tmp/
-/logs/
+# Real inputs and outputs NEVER leave these directories (or B2).
+# See CLAUDE.md — Hard Rules: Privacy.
+/data/*
+!/data/.gitkeep
+/output/*
+!/output/.gitkeep
+/logs/*
+!/logs/.gitkeep
+/tmp/*
+!/tmp/.gitkeep
 /cache/
 
 # Operating System Files

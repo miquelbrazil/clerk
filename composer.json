@@ -1,6 +1,6 @@
 {
-    "name": "miquelbrazil/accounting-tools",
-    "description": "CLI tools for parsing and preparing financial data for use with Zoho Books.",
+    "name": "miquelbrazil/clerk",
+    "description": "Personal financial data engineering system: ingest, normalize, dedupe, categorize, and push clean data to Zoho Books.",
     "type": "project",
     "license": "proprietary",
 	"authors": [

@@ -1,0 +1,42 @@
+# Clerk gitleaks configuration.
+#
+# Extends the upstream default ruleset (API keys, tokens, private keys) with
+# rules for the privacy classes that matter in THIS repo but that no generic
+# secret scanner knows about: personal filesystem paths, cloud-storage mounts,
+# and account identifiers. See CLAUDE.md — Hard Rules: Privacy.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "clerk-home-path"
+description = "Personal filesystem path (macOS/Linux home directory)"
+regex = '''(?i)(/Users/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+)/'''
+tags = ["privacy", "path"]
+
+[[rules]]
+id = "clerk-cloud-storage-path"
+description = "Cloud-storage mount path (Google Drive, Dropbox, iCloud, OneDrive)"
+regex = '''(?i)(CloudStorage|GoogleDrive-|/My Drive/|Dropbox/|OneDrive|Library/Mobile Documents)'''
+tags = ["privacy", "path"]
+
+[[rules]]
+id = "clerk-account-label"
+description = "Institution + account-label combination (e.g. 'Some Bank Visa 1014')"
+regex = '''(?i)\b(visa|mastercard|amex|american express|discover|checking|savings|debit|credit card)\b[^\n"']{0,24}\b\d{4}\b'''
+tags = ["privacy", "account-identifier"]
+
+[[rules]]
+id = "clerk-account-number"
+description = "Account-number-like digit run (12-19 digits, possibly separated)"
+regex = '''(?i)\b(?:acct|account|card)\s*(?:#|no\.?|number)?\s*[:=]?\s*[0-9](?:[0-9 -]{10,21})[0-9]\b'''
+tags = ["privacy", "account-identifier"]
+
+[allowlist]
+description = "Paths that are documentation of the rules themselves, or synthetic by construction"
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''^\.githooks/pre-commit$''',
+  '''^composer\.lock$''',
+  '''^docs/scrub-verification\.md$''',
+]
