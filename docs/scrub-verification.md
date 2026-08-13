@@ -71,7 +71,13 @@ Set an absolute path to the repo first; `filter-repo` changes what the working
 directory means, so every path below is absolute on purpose:
 
 ```bash
-CLERK=/absolute/path/to/clerk        # e.g. ~/Developer/miquelbrazil/clerk
+# Run this from inside the repo — it derives the path rather than trusting you
+# to type one. Do not hand-write it as CLERK="~/..." : tilde expansion does not
+# happen inside quotes, so the variable would hold a literal ~ that no command
+# can resolve, which looks exactly like the variable being unset.
+cd /wherever/clerk/is
+CLERK=$(git rev-parse --show-toplevel)
+echo "[$CLERK]"                      # sanity check: must be an absolute path
 
 git clone --no-local "$CLERK" /tmp/clerk-scrubtest
 cd /tmp/clerk-scrubtest
