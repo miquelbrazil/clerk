@@ -38,37 +38,65 @@ than leaving it as an unexplained omission.
 cat .scrub/replacements.txt
 ```
 
-Four rules: two regexes collapsing the cloud-storage statement path and the
-personal Lando path, one literal for the account label, one regex for the host
-home directory. Confirm each one matches something you actually want gone, and
-that the replacement text is inert.
+Five rules, applied to blob contents only (commit messages are a separate
+`--replace-message` option, and are verified clean by check 4b):
+
+1. Deletes the ionCube `build_as_root` key and its list item together, so no
+   orphaned YAML key is left behind.
+2. Collapses the cloud-storage statement path.
+3. Collapses the personal Lando path to the container mount.
+4. Literal for the account label.
+5. Regex for the host home directory.
+
+Confirm each matches something you want gone and that the replacement is inert.
+
+**Rules 3–5 are belt-and-braces, and a green run does not exercise them.**
+Rule 1 deletes the only line rule 3 could match; rule 2's regex swallows the
+region rule 4 acts on; and rule 5's only targets are inside `phpinfo.txt`,
+which `--invert-paths` deletes wholesale. Keep them — if a future run scrubs
+`phpinfo.txt` in place rather than deleting it, rule 5 becomes load-bearing
+having never once fired.
+
+Note for anyone editing these: `filter-repo` compiles them with a bare
+`re.compile`, with **no** `MULTILINE` flag. `^` will not match line starts.
+Anchor on explicit `\n`. Literals are also applied before regexes, regardless
+of file order.
 
 ## Step 2 — Dry-run the rewrite on a throwaway clone
 
 Never rehearse on the working repo. `--no-local` forces a real object copy
-rather than hardlinks into the source `.git`:
+rather than hardlinks into the source `.git`.
+
+Set an absolute path to the repo first; `filter-repo` changes what the working
+directory means, so every path below is absolute on purpose:
 
 ```bash
-git clone --no-local . /tmp/clerk-scrubtest
+CLERK=/absolute/path/to/clerk        # e.g. ~/Developer/miquelbrazil/clerk
+
+git clone --no-local "$CLERK" /tmp/clerk-scrubtest
 cd /tmp/clerk-scrubtest
 
 git filter-repo --force \
   --invert-paths \
   --path phpinfo.txt \
   --path .lando/php/extensions \
-  --replace-text ../../path/to/clerk/.scrub/replacements.txt
+  --replace-text "$CLERK/.scrub/replacements.txt"
 ```
 
-Use an absolute path to `replacements.txt` — `filter-repo` changes the working
-directory's meaning and a relative path will surprise you.
+`/tmp/clerk-scrubtest` is the **system** temp directory, not the repo's `tmp/`.
+That is deliberate, and the distinction matters: this clone holds the complete
+un-scrubbed history — the entire private payload. Keeping it outside the repo
+means its containment does not depend on a single `.gitignore` line continuing
+to hold. The repo's `tmp/` is also application runtime state (`config/paths.php`
+defines `TMP` and `CACHE` under it), not developer scratch space.
 
 ## Step 3 — Verify the throwaway clone
 
 ```bash
-/path/to/clerk/.scrub/verify-scrub.sh /tmp/clerk-scrubtest
+"$CLERK/.scrub/verify-scrub.sh" /tmp/clerk-scrubtest
 ```
 
-Five checks, all of which must pass:
+Seven checks, all of which must pass:
 
 1. **Every blob in every commit** is scanned for each private literal. This is
    stronger than the plan's `git log --all -p | grep` wording: it walks the
@@ -76,14 +104,30 @@ Five checks, all of which must pass:
    never renders in a diff (including binaries).
 2. **Removed paths touch no commit** — `phpinfo.txt` and both `.so` files.
 3. **The plan's literal acceptance grep** over `git log --all -p`.
-4. **No blob over 1 MB** survives in history (the ionCube loaders specifically).
-5. **The current working tree** is clean of the same literals.
+4. **No ionCube loader binary** survives, at any size, matched by path. Size
+   alone is the wrong test — a small artifact would pass a 1 MB threshold.
+5. **(4b) Commit messages** carry no private literal. `--replace-text` does not
+   touch messages, so a reword during an interactive rebase is outside the
+   scrub entirely. This is the easiest way for something to creep back in.
+6. **(4c) The ionCube build directive is gone** from every blob. Completeness,
+   not privacy — the surviving reference was benign, but removing it was a
+   deliberate decision, so it is asserted rather than assumed.
+7. **The current working tree** is clean of the same literals.
 
 Exit 0 and a green `SCRUB VERIFIED` means safe to proceed. Anything else: stop.
 
 The verifier has been sanity-checked as a *negative* control — run against the
-un-scrubbed repo it reports 13 hits and exits non-zero. A verifier that has
-never been observed failing is not evidence of anything.
+un-scrubbed repo it reports 10 private-literal hits, both `.so` paths, and the
+build directive, and exits non-zero. A verifier that has never been observed
+failing is not evidence of anything.
+
+Two false-positive classes were found and fixed while building it, both the
+same mistake: the files that *document* the scrub necessarily contain the
+strings the scrub looks for. `.gitleaks.toml` and `.githooks/pre-commit` define
+the patterns; `docs/plan.md` and this runbook describe the removal in prose.
+Checks that flag them train you to skim output, which is how a real finding
+gets waved through. Excluding them is not a weakening of the check — but
+widening a pattern to accommodate prose would be.
 
 > Implementation note worth preserving: the verifier never pipes into
 > `grep -q`. `grep -q` exits on first match, the writer takes SIGPIPE, and
@@ -96,15 +140,19 @@ never been observed failing is not evidence of anything.
 Only after step 3 is green:
 
 ```bash
-cd /path/to/clerk
+cd "$CLERK"
 git filter-repo --force \
   --invert-paths \
   --path phpinfo.txt \
   --path .lando/php/extensions \
-  --replace-text .scrub/replacements.txt
+  --replace-text "$CLERK/.scrub/replacements.txt"
 
 ./.scrub/verify-scrub.sh .
 ```
+
+`filter-repo` refuses to run on a dirty tree. `.scrub/` is gitignored, so it
+does not count against that — and it survives the rewrite, which is why the
+verifier is still there to run on the line above.
 
 `filter-repo` removes the `origin` remote by design, to stop a rewrite being
 pushed by reflex. Re-add it deliberately:
@@ -141,42 +189,61 @@ not on a schedule you control. The private content stays publicly reachable to
 anyone who has, or can guess, an old SHA. Both old SHAs are recorded in
 `.scrub/old-shas.txt`.
 
-Two ways to actually finish the job:
+### Decision (2026-08-13): force-push and wait for GitHub's own GC
 
-1. **Delete and recreate the repository** (recommended here). This repo has
-   0 forks, 0 stars, 1 watcher (you), no issues, no PRs, no releases — so
-   nothing is lost. `docs/plan.md` already sanctions this: *"recreate repo from
-   scrubbed tree + force-push — acceptable given no forks/consumers."* It is
-   the only method that gives a hard guarantee.
+**This is an accepted, still-open exposure, not a closed item.** The
+alternatives considered:
 
-   ```bash
-   gh repo delete miquelbrazil/clerk --yes
-   gh repo create miquelbrazil/clerk --public \
-     --description "Personal financial data engineering system" \
-     --source . --remote origin --push
-   ```
+| | Old objects purged | Commit dates | Repo created date |
+| --- | --- | --- | --- |
+| Wait for GitHub's GC *(chosen)* | Eventually, on their schedule | 2024 preserved | 2024 preserved |
+| Force-push + GitHub Support purge | On support turnaround | 2024 preserved | 2024 preserved |
+| Delete and recreate | Immediately | 2024 preserved | Resets to today |
 
-2. **Force-push, then ask GitHub Support to purge** the unreachable objects and
-   any cached views. This preserves the repo's creation date and URL history
-   but depends on a support turnaround, during which the data stays reachable.
+Delete-and-recreate is the only hard guarantee, and `docs/plan.md` sanctions it
+(*"recreate repo from scrubbed tree + force-push — acceptable given no
+forks/consumers"* — 0 forks, 0 stars, 1 watcher). It was declined because it
+resets the repository creation date, and the two-year gap between the 2024
+commits and the 2026 resumption is worth keeping on the record.
 
-Whichever you pick, afterwards verify from the outside:
+What the exposed content actually is, so the risk can be re-judged later
+without re-deriving it: a home directory path and local username, a Google
+Drive path containing the maintainer's email, one institution + card last-four
+label, and a `phpinfo()` environment dump. **No credentials** — the dump was
+checked for keys, tokens, and passwords and had none.
+
+The escalation path if this needs closing sooner is GitHub Support; nothing
+about the local rewrite has to be redone.
+
+### Verify from the outside
+
+`git filter-repo` preserves author and committer dates verbatim (it has no
+option that mutates them; `--date-order` is a traversal flag), so the 2024
+commits keep their dates through the rewrite with only their SHAs changing.
 
 ```bash
 git clone https://github.com/miquelbrazil/clerk.git /tmp/clerk-fresh
-./.scrub/verify-scrub.sh /tmp/clerk-fresh
+"$CLERK/.scrub/verify-scrub.sh" /tmp/clerk-fresh
 
-# And confirm an old SHA is genuinely gone (expect 404):
-gh api repos/miquelbrazil/clerk/commits/$(head -1 .scrub/old-shas.txt)
+# Are the old SHAs still reachable? 200 = still exposed, 404 = collected.
+while read -r sha; do
+  printf '%s ' "$sha"
+  gh api "repos/miquelbrazil/clerk/commits/$sha" --silent 2>/dev/null \
+    && echo "STILL REACHABLE" || echo "404 — collected"
+done < "$CLERK/.scrub/old-shas.txt"
 ```
+
+Re-run that loop periodically. GitHub publishes no schedule for collecting
+unreachable objects and does not guarantee it, so treat the old SHAs as live
+until this prints 404 for both — do not assume a date.
 
 ## Rollback
 
 If anything looks wrong before step 6, the rewrite is entirely local:
 
 ```bash
-rm -rf /path/to/clerk
-cp -a /path/to/clerk-backup-pre-phase0 /path/to/clerk
+rm -rf "$CLERK"
+cp -a "$CLERK-backup-pre-phase0" "$CLERK"
 ```
 
 After step 6 the backup still holds the original history, but the remote has
