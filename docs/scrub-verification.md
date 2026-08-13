@@ -151,10 +151,22 @@ git filter-repo --force \
   --invert-paths \
   --path phpinfo.txt \
   --path .lando/php/extensions \
-  --replace-text "$CLERK/.scrub/replacements.txt"
+  --replace-text "$CLERK/.scrub/replacements.txt" \
+  --commit-callback 'commit.committer_date = commit.author_date'
 
 ./.scrub/verify-scrub.sh .
 ```
+
+The `--commit-callback` realigns committer timestamps with author timestamps.
+Rewording commits in an interactive rebase preserves the author date but stamps
+a fresh committer date, so the Phase 0 commits had drifted by 10–48 minutes.
+Dates are stored as raw `epoch ±offset`, so assigning the whole field carries
+the timezone across rather than just the instant.
+
+It runs against every commit, but the 2024 pair already has author and
+committer equal, so for those it is a no-op and does not perturb them beyond
+what the path filtering already does. Folding it into this single pass is why
+it is here and not a separate rewrite — there is no reason to rewrite twice.
 
 `filter-repo` refuses to run on a dirty tree. `.scrub/` is gitignored, so it
 does not count against that — and it survives the rewrite, which is why the
