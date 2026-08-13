@@ -26,6 +26,11 @@
 !/tmp/.gitkeep
 /cache/
 
+# Phase 0 history-scrub working files. These contain the literal private
+# strings being removed from history — committing them would defeat the
+# scrub. See docs/scrub-verification.md.
+/.scrub/
+
 # Operating System Files
 ###############################################################################
 .DS_Store

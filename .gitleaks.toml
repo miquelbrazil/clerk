@@ -22,7 +22,7 @@ tags = ["privacy", "path"]
 
 [[rules]]
 id = "clerk-account-label"
-description = "Institution + account-label combination (e.g. 'Some Bank Visa 1014')"
+description = "Institution + account-label combination (fabricated example: 'Northgate Bank Visa 4321')"
 regex = '''(?i)\b(visa|mastercard|amex|american express|discover|checking|savings|debit|credit card)\b[^\n"']{0,24}\b\d{4}\b'''
 tags = ["privacy", "account-identifier"]
 
