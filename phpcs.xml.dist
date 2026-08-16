@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<ruleset name="Clerk">
+    <description>PSR-12 with strict types required in every file.</description>
+
+    <file>src</file>
+    <file>tests</file>
+    <file>config</file>
+    <file>bin/console</file>
+    <file>public</file>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <!-- Warnings are advisory; only errors fail `composer cs`. -->
+    <config name="ignore_warnings_on_exit" value="1"/>
+
+    <rule ref="PSR12"/>
+
+    <!-- config/paths.php is a define()-only bootstrap inherited from CakePHP. -->
+    <exclude-pattern>config/paths.php</exclude-pattern>
+
+    <!--
+        CakePHP entities declare $_accessible; the underscore prefix is the
+        framework's own API, not a style choice available to us.
+    -->
+    <rule ref="PSR2.Classes.PropertyDeclaration.Underscore">
+        <exclude-pattern>src/Model/Entity/*</exclude-pattern>
+    </rule>
+
+    <!--
+        Pest test files and bootstraps are side-effecting by design: they
+        register tests/hooks at include time alongside helper functions.
+    -->
+    <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
+        <exclude-pattern>tests/*</exclude-pattern>
+        <exclude-pattern>config/bootstrap.php</exclude-pattern>
+        <exclude-pattern>public/index.php</exclude-pattern>
+        <exclude-pattern>bin/console</exclude-pattern>
+    </rule>
+</ruleset>

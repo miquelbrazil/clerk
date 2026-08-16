@@ -108,3 +108,45 @@ Tailwind standalone CLI binary + vendored Alpine.js; no package.json, no Vite.
 **Why:** server-rendered Plates + Alpine sprinkles need no HMR/bundling.
 **Revisit trigger:** a charting/visualization library requiring a real build
 step; adding one requires a new entry here first.
+
+## 2026-08 · D-018 — PDF extractor deferred to Phase 4; smalot/pdfparser in the interim
+**Amends D-008 (timing, not substance).** Phase 1 removes the ionCube eval
+package and adds `smalot/pdfparser`; the licensed SetaPDF source package is
+NOT added yet. **Why:** the extractor choice is per-vendor and evidence-based
+(D-008), and that evidence only exists in Phase 4 when real statements are on
+hand. Adding a licensed dependency in Phase 1 would gate `composer install` on
+Setasign credentials for no Phase 1 benefit — none of Phase 1's acceptance
+criteria touch PDF parsing. `ParseStatement` is now a text-dump inspection aid
+rather than a parser, which is what Phase 4 actually needs to start.
+**Revisit:** Phase 4, per vendor; record each pick under D-008.
+
+## 2026-08 · D-019 — cakephp/i18n is a required dependency, not optional
+CakeORM's `Timestamp` behavior instantiates `Cake\I18n\DateTime` directly and
+fatals when the package is absent; `DateTimeType` likewise prefers it and only
+falls back to `DateTimeImmutable` when it cannot be found. Standalone ORM use
+(D-015) therefore requires `cakephp/i18n` explicitly — it is not pulled in by
+`cakephp/orm`. Entity datetime properties are typed `\Cake\I18n\DateTime`.
+
+## 2026-08 · D-020 — Local Postgres uses Lando's default superuser
+Lando's `postgres` service provisions the superuser as `postgres` with an empty
+password and ignores a custom `creds` user/password block; only `database` is
+honoured. Local defaults in `ConnectionFactory` match that reality rather than
+fighting it. These are throwaway container credentials with no bearing on
+deployment, where all `DB_*` values are injected (D-005). Consequence: the env
+reader treats an *unset* variable as "use default" but an explicitly empty one
+as a real value, since an empty password is legitimate locally.
+
+## 2026-08 · D-021 — Database-dependent tests are grouped, not mocked
+Integration tests carry the `database` group and skip when Postgres is
+unreachable, so `--exclude-group=database` gives a green suite without a
+database while CI and Lando run them for real. **Why:** D-010 rules out a
+SQLite fallback, and mocking the ORM would test the mock rather than the
+Postgres round-trip that the tests exist to prove.
+
+## 2026-08 · D-022 — Template escaping is enforced by a test, not only review
+`tests/Unit/TemplateEscapingTest.php` scans every Plates template and fails on
+any short-echo that is not `$this->e()`, a sanctioned structural helper, or an
+explicitly named `*Raw` helper. **Why:** D-014 accepted the loss of
+auto-escaping on the strength of a convention; a convention guarded only by
+human review is one distracted PR away from an XSS defect. The test was
+verified to fail on an introduced violation, not merely to pass.

@@ -52,21 +52,39 @@ See [docs/architecture.md](docs/architecture.md) for the system diagram,
 
 ## Getting started
 
-> Clerk is early — the build is at Phase 0/1 of [docs/plan.md](docs/plan.md),
+> Clerk is early — the build is at Phase 1 of [docs/plan.md](docs/plan.md),
 > so parts of the stack above are still landing.
 
 ```bash
 git clone https://github.com/miquelbrazil/clerk.git
 cd clerk
-composer install
 
 # Enable the privacy pre-commit hook (once per clone).
 brew install gitleaks
 git config core.hooksPath .githooks
 
-lando start
+lando start           # PHP 8.5 + nginx + PostgreSQL 16
+lando composer install
+lando phinx migrate   # create the staging schema
 lando console list
 ```
+
+`lando start` prints the app URL; `/health` reports app and database status as
+JSON.
+
+### Everyday commands
+
+| Command | Does |
+| --- | --- |
+| `lando test` | Run the Pest suite |
+| `lando stan` | PHPStan level 8 |
+| `lando cs` | PSR-12 check (`lando composer cs:fix` to autofix) |
+| `lando phinx migrate` / `rollback` | Apply / revert migrations |
+| `lando psql` | psql shell on the staging database |
+| `lando console env:check` | Report which env vars are set (names only) |
+
+Tests that need Postgres are grouped: `vendor/bin/pest --exclude-group=database`
+runs the suite without a database.
 
 Copy `.env.example` to `.env` for local editor/debug paths. It documents
 variable **names** only; real values are never stored on disk.
@@ -77,7 +95,16 @@ Secrets are managed by Infisical and injected at runtime. There are two zones:
 
 - **Zone B — human-run commands and the deployed app.** Values are injected
   into the environment: `infisical run --env=dev -- lando console <command>`.
-  Code reads them from environment variables and nowhere else.
+  Code reads them from environment variables and nowhere else. Verify injection
+  is working with:
+
+  ```bash
+  lando console env:check                              # secrets unset
+  infisical run --env=dev -- lando console env:check   # secrets set
+  ```
+
+  `env:check` prints **presence only** — never a value, length, or prefix — so
+  it is safe to run anywhere.
 - **Zone A — coding-agent sessions and unattended jobs.** Outbound HTTP is
   routed through the Infisical Agent Proxy, which applies real credentials at
   the network boundary. The process holds placeholders only, so a

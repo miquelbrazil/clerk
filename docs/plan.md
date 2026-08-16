@@ -25,9 +25,13 @@ Acceptance:
   or phpinfo content in any commit.
 - Fresh clone + `composer install` + `bin/console list` works.
 
-**Status (2026-08-13):** tree work complete and committed; history rewritten
-locally with `git filter-repo`. **Awaiting human force-push** — see
-`docs/scrub-verification.md`. Two notes for the next session:
+**Status (2026-08-16): COMPLETE.** Force-push landed; `origin/main` and local
+`main` both at the rewritten history, and the scrub greps come back clean.
+Acceptance criterion 2 (the one blocked below) was cleared in Phase 1 by
+removing the Setasign eval package: `composer install` + `bin/console list`
+both succeed from a clean checkout on PHP 8.5.6.
+
+Historical notes from the 2026-08-13 session, kept for the record:
 - Scope added beyond the task list above: the ionCube `build_as_root` line in
   `.lando.yml` also carried a personal filesystem path, so it was removed
   (it referenced a binary that Phase 0 deletes anyway). `composer.json`
@@ -73,6 +77,34 @@ Tasks:
 
 Acceptance: CI green on both PHP versions; `lando start` serves the Slim
 health page; Pest suite runs under both versions.
+
+**Status (2026-08-16):** all tasks complete except the Zone A spike. Verified
+locally on PHP 8.5.6:
+- `composer install` clean; Symfony Console 8.1 (note: `Application::add()` was
+  removed in favour of `addCommand()`); ionCube eval package gone,
+  `smalot/pdfparser` in its place per D-018.
+- Lando runs PHP 8.5 + nginx + Postgres 16. `/health` returns HTTP 200 with a
+  live database check; `/` renders through Plates.
+- Pest: 8 passing, including a real Postgres round-trip through Phinx →
+  CakeORM → Entity. PHPStan level 8 clean with no baseline and no ignores.
+  PHPCS clean.
+- `phinx migrate` / `rollback -t 0` / re-migrate all verified.
+- Zone B verified: `env:check` reports presence only and correctly detects an
+  injected variable. The `infisical` CLI is NOT installed on this machine, so
+  the real `infisical run` half is unrun — install it, then compare
+  `lando console env:check` against
+  `infisical run --env=dev -- lando console env:check`.
+- CI workflow written and its YAML validated; the suite was additionally run
+  against Postgres over TCP with CI's exact env vars. **The PHP 8.4 leg is
+  unproven locally** — the `php@8.4` formula is installed but its binary is not
+  linked, so 8.4 gets its first real run on CI.
+
+**Outstanding — Zone A Agent Proxy spike (D-013).** Deliberately not attempted:
+it requires real Zoho and B2 credentials against live endpoints, which the
+agent must never handle (CLAUDE.md Zone A rules), and the `infisical` CLI is
+absent. This is a human-run task. Its outcome is recorded under D-013, and
+Phase 2 depends on it, since the Zoho OAuth client is the first flow that must
+choose between proxy brokering and per-process env injection.
 
 ## Phase 2 — Zoho recon (read-only)
 
