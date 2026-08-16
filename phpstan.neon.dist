@@ -15,3 +15,10 @@ parameters:
             - config/paths.php
     bootstrapFiles:
         - tests/phpstan-bootstrap.php
+    # spatie/ray registers a shutdown function that instantiates Ray (and a
+    # UUID factory) at process exit. In PHPStan's parallel workers that has
+    # been observed to abort a cold run non-deterministically — a flaky CI
+    # failure with no relationship to the code under analysis. Ray is a local
+    # debugging aid, so analysing single-process costs us nothing here.
+    parallel:
+        maximumNumberOfProcesses: 1

@@ -150,3 +150,13 @@ explicitly named `*Raw` helper. **Why:** D-014 accepted the loss of
 auto-escaping on the strength of a convention; a convention guarded only by
 human review is one distracted PR away from an XSS defect. The test was
 verified to fail on an introduced violation, not merely to pass.
+
+## 2026-08 · D-023 — PHPStan runs single-process
+`spatie/ray` registers a shutdown function that instantiates Ray and a UUID
+factory at process exit. Inside PHPStan's parallel workers this was observed
+aborting a cold run non-deterministically — a flaky failure unrelated to the
+code under analysis, and one that would land on CI (cold cache, shared
+runners) rather than locally. Analysis is pinned to one process.
+**Cost accepted:** slower analysis as the codebase grows. **Revisit trigger:**
+analysis time becoming painful, or dropping spatie/ray — it is currently
+called from no application code and is retained only as a debugging aid.
