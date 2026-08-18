@@ -45,8 +45,7 @@
     "require-dev": {
         "pestphp/pest": "^5.1",
         "phpstan/phpstan": "^2.2",
-        "squizlabs/php_codesniffer": "^4.0",
-        "spatie/ray": "^1.0"
+        "squizlabs/php_codesniffer": "^4.0"
     },
     "scripts": {
         "test": "pest",

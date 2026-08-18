@@ -106,6 +106,28 @@ absent. This is a human-run task. Its outcome is recorded under D-013, and
 Phase 2 depends on it, since the Zoho OAuth client is the first flow that must
 choose between proxy brokering and per-process env injection.
 
+## Phase 1b — Foundation follow-ups
+
+Hardening identified while completing Phase 1. Sequenced after Phase 1 and
+before Phase 2: Phase 2 begins touching real financial data, so the privacy
+safeguards should be sound first. Tracked in GitHub issue #6 (sub-issues
+#2–#5).
+
+- #2 — Bootstrap dev environment on clone: git hooks + gitleaks. **Do first:**
+  the pre-commit hook is currently inert (`core.hooksPath` unset, gitleaks not
+  installed), so the safeguard protecting a public financial repo is not
+  running.
+- #4 — Switch the web server from nginx to Caddy (removes the custom vhost
+  template carried only to add a `try_files` fallback).
+- #3 — Extract routes to `config/routes.php`; add a DI definitions file.
+  A singleton route registry is explicitly out of scope — revisit in Phase 8.
+- #5 — Make Lando the only runtime: document host prerequisites (Docker,
+  Lando, git, gh), remove host-PHP assumptions from the docs.
+
+Acceptance: gitleaks demonstrably blocks a synthetic secret on a fresh clone;
+`lando start` serves `/` and `/health` with no custom vhost template; CI green
+on both PHP versions.
+
 ## Phase 2 — Zoho recon (read-only)
 
 Tasks:

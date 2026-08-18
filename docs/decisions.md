@@ -151,7 +151,7 @@ auto-escaping on the strength of a convention; a convention guarded only by
 human review is one distracted PR away from an XSS defect. The test was
 verified to fail on an introduced violation, not merely to pass.
 
-## 2026-08 · D-023 — PHPStan runs single-process
+## 2026-08 · D-023 — PHPStan runs single-process ~~(SUPERSEDED by D-024)~~
 `spatie/ray` registers a shutdown function that instantiates Ray and a UUID
 factory at process exit. Inside PHPStan's parallel workers this was observed
 aborting a cold run non-deterministically — a flaky failure unrelated to the
@@ -160,3 +160,34 @@ runners) rather than locally. Analysis is pinned to one process.
 **Cost accepted:** slower analysis as the codebase grows. **Revisit trigger:**
 analysis time becoming painful, or dropping spatie/ray — it is currently
 called from no application code and is retained only as a debugging aid.
+
+## 2026-08 · D-024 — spatie/ray removed; PHPStan parallelism restored
+**Supersedes D-023.** `spatie/ray` is dropped from `require-dev` and `ray.php`
+deleted; PHPStan's `maximumNumberOfProcesses: 1` pin is removed with it.
+**Why:** D-023's own revisit trigger. Ray was called from no application code,
+so the only thing it contributed was a shutdown hook that made cold PHPStan
+runs flaky. Removing the cause is better than working around it, and it also
+drops five transitive dependencies (spatie/macroable, spatie/backtrace,
+ramsey/uuid, ramsey/collection, brick/math) from the dev tree.
+**Revisit trigger:** wanting Ray for debugging — reinstall it ad hoc
+(`composer require --dev spatie/ray`) rather than carrying it permanently, and
+re-pin PHPStan to one process for as long as it is installed.
+
+## 2026-08 · D-025 — Deployment secrets mechanism deferred to Phase 8 (OPEN)
+How the deployed app obtains secrets is **not decided**. Options, with the
+trade-off that matters for each:
+- **Infisical → platform env-var sync** (integration pushes secrets into DO App
+  Platform's own store; app reads `getenv()` and knows nothing about
+  Infisical). No runtime dependency on Infisical availability; keeps the app
+  ignorant, which is what D-005's "environment variables only" rule assumes.
+- **Infisical CLI in the container entrypoint** (CLI wraps the app process at
+  boot). Secrets never persist in the platform's store, but the app cannot
+  start if Infisical is unreachable.
+- **Infisical PHP SDK in the app** (app fetches secrets at runtime). Requires
+  the app to hold an Infisical credential — this moves the bootstrapping
+  problem rather than solving it, and widens what a compromised app can read.
+**Why deferred:** the choice is only testable against a real deployment
+target, which Phase 8 builds. Recording it now so the question is not
+rediscovered later. **Does not affect Zone A/B locally** (D-005/D-013):
+`infisical run` on the host, wrapping `lando`, is unchanged.
+
