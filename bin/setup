@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Clerk host-side setup. Idempotent; safe to re-run.
+#
+# What it does:
+#   1. Verifies the host is macOS (Linux/Windows tracked in #8).
+#   2. Verifies Homebrew is installed (does NOT auto-install brew).
+#   3. Installs gitleaks via brew if missing.
+#   4. Enrolls the .githooks/ pre-commit guard by setting core.hooksPath.
+#
+# Run once after cloning; safe to re-run any time.
+
+set -uo pipefail
+
+if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    printf '\033[31m[setup] not inside a git working tree.\033[0m\n' >&2
+    exit 1
+fi
+cd "$repo_root" || exit 1
+
+if [ "$(uname -s)" != "Darwin" ]; then
+    printf '\033[31m[setup] macOS is the only supported host today.\033[0m\n' >&2
+    printf '        Linux and Windows support is tracked in miquelbrazil/clerk#8.\n' >&2
+    exit 1
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+    printf '\033[31m[setup] Homebrew is required but not installed.\033[0m\n' >&2
+    printf '        Install it from https://brew.sh, then re-run: ./bin/setup\n' >&2
+    exit 1
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+    printf '[setup] installing gitleaks via brew...\n'
+    brew install gitleaks
+fi
+
+current_hookspath="$(git config --local --get core.hooksPath 2>/dev/null || true)"
+if [ "$current_hookspath" != ".githooks" ]; then
+    git config --local core.hooksPath .githooks
+    printf '[setup] pre-commit hook enrolled (.githooks)\n'
+fi
+
+printf '\033[32m[setup] ready.\033[0m\n'
