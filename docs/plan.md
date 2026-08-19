@@ -83,8 +83,9 @@ locally on PHP 8.5.6:
 - `composer install` clean; Symfony Console 8.1 (note: `Application::add()` was
   removed in favour of `addCommand()`); ionCube eval package gone,
   `smalot/pdfparser` in its place per D-018.
-- Lando runs PHP 8.5 + nginx + Postgres 16. `/health` returns HTTP 200 with a
-  live database check; `/` renders through Plates.
+- Lando runs PHP 8.5 + Postgres 16, served by FrankenPHP (nginx until #4).
+  `/health` returns HTTP 200 with a live database check; `/` renders through
+  Plates.
 - Pest: 8 passing, including a real Postgres round-trip through Phinx →
   CakeORM → Entity. PHPStan level 8 clean with no baseline and no ignores.
   PHPCS clean.
@@ -117,8 +118,10 @@ safeguards should be sound first. Tracked in GitHub issue #6 (sub-issues
   the pre-commit hook is currently inert (`core.hooksPath` unset, gitleaks not
   installed), so the safeguard protecting a public financial repo is not
   running.
-- #4 — Switch the web server from nginx to Caddy (removes the custom vhost
-  template carried only to add a `try_files` fallback).
+- #4 — Switch the web server from nginx to Caddy. Landed as FrankenPHP
+  (Caddy with PHP embedded): the forked 27-line vhost template is gone with
+  no config file replacing it, and web + runtime collapse to one container.
+  **Done**, see D-027.
 - #3 — Extract routes to `config/routes.php`; add a DI definitions file.
   A singleton route registry is explicitly out of scope — revisit in Phase 8.
 - #5 — Make Lando the only runtime: document host prerequisites (Docker,

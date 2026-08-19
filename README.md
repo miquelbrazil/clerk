@@ -62,7 +62,7 @@ cd clerk
 # One-time host setup: install gitleaks, enroll the privacy pre-commit hook.
 ./bin/setup
 
-lando start           # PHP 8.5 + nginx + PostgreSQL 16
+lando start           # PHP 8.5 (FrankenPHP) + PostgreSQL 16
 lando composer install
 lando phinx migrate   # create the staging schema
 lando console list

@@ -2,15 +2,38 @@ name: clerk
 env_file:
   - .env
 services:
+  # FrankenPHP: Caddy with PHP embedded, one container for web + runtime
+  # (D-027). It keeps the official PHP image layout, so it drops in as an
+  # image override on Lando's php service and the composer/tooling wiring
+  # survives. `via: cli` stops Lando expecting apache or nginx; `command`
+  # replaces the `tail -f /dev/null` that `via: cli` would otherwise run.
+  # The image's baked-in Caddyfile roots at SERVER_ROOT (default `public/`,
+  # resolved against /app) and `php_server` applies the front-controller
+  # fallback natively. SERVER_NAME ":80" turns off automatic HTTPS — Lando
+  # terminates TLS itself.
   app:
     type: php:8.5
-    via: nginx
+    via: cli
+    image: dunglas/frankenphp:1-php8.5
+    command: frankenphp run --config /etc/frankenphp/Caddyfile
     webroot: public
     composer_version: 2
     xdebug: false
     config:
       php: .lando/php/php.ini
-      vhosts: .lando/nginx/default.conf.tpl
+    build_as_root:
+      # FrankenPHP ships only PHP's default extensions (D-027); pdo_pgsql is
+      # the Postgres driver, intl is required by cakephp/i18n (D-019), zip
+      # keeps composer dist installs fast.
+      - install-php-extensions pdo_pgsql intl zip
+    overrides:
+      environment:
+        SERVER_NAME: ":80"
+      # Publish on loopback explicitly. A bare "80" would leave the host
+      # interface to Lando's global bindAddress default — loopback today, but
+      # a machine-level setting this repo shouldn't silently depend on.
+      ports:
+        - 127.0.0.1::80
   database:
     type: postgres:16
     portforward: true
