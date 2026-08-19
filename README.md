@@ -59,9 +59,8 @@ See [docs/architecture.md](docs/architecture.md) for the system diagram,
 git clone https://github.com/miquelbrazil/clerk.git
 cd clerk
 
-# Enable the privacy pre-commit hook (once per clone).
-brew install gitleaks
-git config core.hooksPath .githooks
+# One-time host setup: install gitleaks, enroll the privacy pre-commit hook.
+./bin/setup
 
 lando start           # PHP 8.5 + nginx + PostgreSQL 16
 lando composer install

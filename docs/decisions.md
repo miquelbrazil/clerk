@@ -191,3 +191,19 @@ target, which Phase 8 builds. Recording it now so the question is not
 rediscovered later. **Does not affect Zone A/B locally** (D-005/D-013):
 `infisical run` on the host, wrapping `lando`, is unchanged.
 
+## 2026-08 · D-026 — Host prerequisites bootstrapped by `bin/setup`, not Composer
+`.githooks/pre-commit` requires `core.hooksPath=.githooks` per clone, and
+gitleaks requires a host install. Both are enrolled by a single host-side
+script, `bin/setup`, invoked once after cloning. **Why:** `lando composer
+install` runs Composer inside the app container, so a Composer
+`post-install-cmd` would have to reach into the host `.git/` and cope with the
+container's PATH not carrying git. Gitleaks is a host binary regardless —
+commits happen on the host — so the install and enrollment steps belong
+together. `bin/setup` is also the natural home for the docker/lando/gh prereq
+checks tracked in #5; its OS gate points at #8 for the deferred Linux/Windows
+story. **Rejected:** auto-installing Homebrew (installer is opinionated about
+shell rc files and `/opt/homebrew`; the script bails with `https://brew.sh`
+instead); and belt-and-suspenders enrollment via both `bin/setup` and a
+Composer script (anyone skipping one will skip the other, so two paths just
+double the surface area).
+
