@@ -207,3 +207,35 @@ instead); and belt-and-suspenders enrollment via both `bin/setup` and a
 Composer script (anyone skipping one will skip the other, so two paths just
 double the surface area).
 
+## 2026-08 · D-027 — FrankenPHP replaces nginx as the web server and PHP runtime
+The Slim front controller is served by FrankenPHP (`dunglas/frankenphp`,
+Caddy with PHP embedded), replacing php-fpm plus a 27-line nginx vhost
+template forked from Lando's default. **Why:** the fork existed to add one
+`try_files` block, without which any routed non-file (`/health`) 404s before
+Slim sees the request; Caddy's `php_server` directive applies that fallback
+natively, and FrankenPHP's image bakes in a Caddyfile already rooted at
+`public/`, so the repo carries zero web-server config. One container replaces
+two — Lando 3.26 has no Caddy service type, so any external-Caddy shape means
+hand-driving php-fpm through undocumented builder options (`via: cli` +
+`phpServer` + `command`) plus a sidecar. FrankenPHP instead drops in as an
+`image:` override on Lando's stock php service: it keeps the official PHP
+image layout (`docker-php-entrypoint`, `conf.d`, `install-php-extensions`),
+so composer, tooling and the php.ini mount survive. It is also a deliberate
+production evaluation: D-016's Phase 8 target (DO App Platform) favours a
+single-container runtime, and running FrankenPHP daily locally is the cheapest
+way to learn whether it belongs there — and in other projects. **Rejected:**
+a `caddy:2-alpine` sidecar dialling php-fpm — built and verified working, but
+it keeps two containers, a Caddyfile in the repo, and the fragile `phpServer`
+knob, while evaluating nothing new. **Cost accepted:** FrankenPHP is a ZTS
+PHP build shipping only PHP's default extensions, so `pdo_pgsql`, `intl`
+(D-019) and `zip` are compiled by an `install-php-extensions` build step, and
+local no longer runs the same PHP build as CI's stock NTS `setup-php` — a
+thread-safety or extension discrepancy would surface locally first, not in
+CI. The image tag (`1-php8.5`) is pinned independently of Lando's php version
+and must be bumped alongside it. **Revisit trigger:** Phase 8 deployment
+makes the production call; if FrankenPHP disappoints before then, the
+verified fallback is the rejected shape above — stock php service forced to
+fpm (`via: cli`, `phpServer: fpm`, `command: php-fpm`) behind a
+`caddy:2-alpine` sidecar whose Caddyfile is six lines ending in
+`php_fastcgi app:9000` (the `fpm` alias exists only under `via: nginx`).
+
