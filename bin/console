@@ -1,18 +1,19 @@
 #!/usr/bin/env php
 <?php
-require dirname(__DIR__) . '/vendor/autoload.php';
-require dirname(__DIR__) . '/config/paths.php';
 
-use Symfony\Component\Console\Application;
+declare(strict_types=1);
+
+use App\Command\EnvCheck;
 use App\Command\ParseStatement;
+use Symfony\Component\Console\Application;
 
-// safeLoad(): a fresh clone has no .env, and secrets are injected at runtime
-// (Infisical) rather than read from disk. See docs/decisions.md D-005 / D-013.
-$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->safeLoad();
+require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/config/bootstrap.php';
 
-$cli = new Application();
+$cli = new Application('clerk', '0.1.0');
 
-$cli->add(new ParseStatement());
+// Symfony Console 8 removed Application::add() in favour of addCommand().
+$cli->addCommand(new ParseStatement());
+$cli->addCommand(new EnvCheck());
 
 $cli->run();

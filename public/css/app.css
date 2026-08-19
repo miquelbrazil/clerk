@@ -1,0 +1,19 @@
+/*
+ * Placeholder stylesheet. Phase 8 replaces this with Tailwind output built by
+ * the standalone CLI binary (docs/decisions.md D-017 — no Node toolchain).
+ */
+:root {
+    color-scheme: light dark;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 3rem 1.5rem;
+    line-height: 1.5;
+}
+
+main {
+    max-width: 40rem;
+    margin: 0 auto;
+}

@@ -111,6 +111,21 @@ in application code. Templates are native PHP via Plates with a mandatory
 escaping convention; no Node toolchain (Tailwind standalone binary, vendored
 Alpine).
 
+**Repository layout** — as of Phase 1:
+
+| Path | Holds |
+| --- | --- |
+| `src/` | The library. All business logic (PSR-4 `App\`). |
+| `src/Command/` | Symfony Console commands — thin consumers of `src/`. |
+| `src/Database/` | `ConnectionFactory`: the only place CakePHP's static registries are touched. |
+| `src/Model/` | CakeORM `Table` + `Entity` classes. |
+| `src/Web/` | Slim `AppFactory` and single-action invokable classes. |
+| `config/` | `paths.php` (constants) and `bootstrap.php` (shared by CLI, web, tests). |
+| `db/migrations/` | Phinx migrations. The only place schema changes live. |
+| `templates/` | Plates templates. Escaping convention enforced by test (D-022). |
+| `public/` | Web root: front controller + static assets. |
+| `tests/` | Pest. `Unit/` runs anywhere; `Integration/` needs Postgres (D-021). |
+
 **Deployment shape** — local: everything in Lando. Hosted: Cloudflare
 (DNS/CDN/Access) fronts the app; compute on DO App Platform; DO Managed
 Postgres adjacent to compute; B2 for objects. Real instance behind Cloudflare

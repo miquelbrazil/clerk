@@ -1,69 +1,77 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Command;
 
+use Smalot\PdfParser\Parser as PdfParser;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use SetaPDF_Core_Document as PDFDocument;
-use SetaPDF_Extractor as PDFExtractor;
-use SetaPDF_Extractor_Strategy_WordGroup as PDFWordGroupStrategy;
-use SetaPDF_Extractor_Result_Words as PDFWordsResult;
 
+/**
+ * Dumps the extracted text of a statement PDF.
+ *
+ * This is a text-inspection aid, not a parser: Phase 4 builds the per-vendor
+ * parsers that turn this text into canonical transactions. The extractor choice
+ * is deliberately provisional here — see docs/decisions.md D-008.
+ */
+#[AsCommand(
+    name: 'parse-statement',
+    description: 'Dump the extracted text of a statement PDF for inspection.',
+)]
 class ParseStatement extends Command
 {
-	protected static $defaultName = 'parse-statement';
+    protected function configure(): void
+    {
+        $this
+            ->setHelp('Extracts text from a statement PDF so its structure can be inspected.')
+            ->addArgument(
+                'path',
+                InputArgument::REQUIRED,
+                'Path to the statement PDF to parse (keep real statements under the gitignored data/ directory).'
+            )
+            ->addOption(
+                'page',
+                'p',
+                InputOption::VALUE_REQUIRED,
+                'Page number to extract. Omit to extract every page.'
+            );
+    }
 
-	private OutputInterface $out;
-	private InputInterface $in;
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $path = (string) $input->getArgument('path');
 
-	protected function configure()
-	{
-		$this
-			->setDescription('Parse a financial statement in PDF format to access it\'s data.')
-			->setHelp('This command parses a financial statement in PDF format and extracts the data.')
-			->addArgument(
-				'path',
-				InputArgument::REQUIRED,
-				'Path to the statement PDF to parse (keep real statements under the gitignored data/ directory).'
-			)
-			->addOption(
-				'page',
-				'p',
-				InputOption::VALUE_REQUIRED,
-				'Page number to extract.',
-				1
-			);
-	}
+        if (!is_file($path) || !is_readable($path)) {
+            $output->writeln(sprintf('<error>Statement not readable: %s</error>', $path));
 
-	protected function initialize(InputInterface $input, OutputInterface $output)
-	{
-		$this->out = $output;
-		$this->in = $input;
-	}
+            return Command::INVALID;
+        }
 
-	protected function execute(InputInterface $input, OutputInterface $output)
-	{
-		$path = (string) $input->getArgument('path');
+        $pages = (new PdfParser())->parseFile($path)->getPages();
 
-		if (!is_file($path) || !is_readable($path)) {
-			$output->writeln(sprintf('<error>Statement not readable: %s</error>', $path));
+        $page = $input->getOption('page');
 
-			return Command::INVALID;
-		}
+        if ($page !== null) {
+            $index = (int) $page - 1;
 
-		$document = PDFDocument::loadByFilename($path);
-		$extractor = new PDFExtractor($document);
-		$extractor->setStrategy(new PDFWordGroupStrategy());
+            if (!isset($pages[$index])) {
+                $output->writeln(sprintf('<error>Page %d does not exist in %s</error>', (int) $page, $path));
 
-		$result = $extractor->getResultByPageNumber((int) $input->getOption('page'));
+                return Command::INVALID;
+            }
 
-		/** @var PDFWordsResult $group */
-		foreach ($result as $group) {
-			$output->writeln($group->getString());
-		}
+            $pages = [$pages[$index]];
+        }
 
-		return Command::SUCCESS;
-	}
+        foreach ($pages as $extracted) {
+            $output->writeln($extracted->getText());
+        }
+
+        return Command::SUCCESS;
+    }
 }

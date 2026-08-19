@@ -40,3 +40,6 @@
 !**/.keep
 !**/.gitkeep
 .lando.local.yml
+
+# PHPUnit/Pest result cache
+.phpunit.cache/

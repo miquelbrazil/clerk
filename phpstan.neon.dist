@@ -1,0 +1,17 @@
+parameters:
+    level: 8
+    phpVersion:
+        min: 80400
+        max: 80599
+    paths:
+        - src
+        - tests
+        - config
+        - public
+    excludePaths:
+        analyse:
+            # define()-only bootstrap inherited from CakePHP; its constants are
+            # made visible to analysis via bootstrapFiles below.
+            - config/paths.php
+    bootstrapFiles:
+        - tests/phpstan-bootstrap.php

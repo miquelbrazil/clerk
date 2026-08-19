@@ -3,13 +3,23 @@ env_file:
   - .env
 services:
   app:
-    type: php:8.1
-    via: cli
+    type: php:8.5
+    via: nginx
+    webroot: public
     composer_version: 2
-    build:
-      - composer update
+    xdebug: false
     config:
       php: .lando/php/php.ini
+      vhosts: .lando/nginx/default.conf.tpl
+  database:
+    type: postgres:16
+    portforward: true
+    # Lando's postgres service provisions the superuser as `postgres` with an
+    # empty password and ignores a custom `creds` block. These are throwaway
+    # container credentials for local development only — real credentials are
+    # injected at runtime by Infisical (docs/decisions.md D-005).
+    creds:
+      database: clerk
 tooling:
   php:
     service: app
@@ -20,4 +30,25 @@ tooling:
     description: "Run Composer commands"
   console:
     service: app
-    cmd: bin/console
+    cmd: php bin/console
+    description: "Run the Clerk CLI"
+  test:
+    service: app
+    cmd: vendor/bin/pest
+    description: "Run the Pest test suite"
+  stan:
+    service: app
+    cmd: vendor/bin/phpstan analyse
+    description: "Run PHPStan static analysis"
+  cs:
+    service: app
+    cmd: vendor/bin/phpcs
+    description: "Check PSR-12 coding standards"
+  phinx:
+    service: app
+    cmd: vendor/bin/phinx
+    description: "Run Phinx migrations"
+  psql:
+    service: database
+    cmd: psql -U postgres clerk
+    description: "Open a psql shell on the staging database"
