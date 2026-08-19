@@ -29,8 +29,11 @@ services:
     overrides:
       environment:
         SERVER_NAME: ":80"
+      # Publish on loopback explicitly. A bare "80" would leave the host
+      # interface to Lando's global bindAddress default — loopback today, but
+      # a machine-level setting this repo shouldn't silently depend on.
       ports:
-        - "80"
+        - 127.0.0.1::80
   database:
     type: postgres:16
     portforward: true
