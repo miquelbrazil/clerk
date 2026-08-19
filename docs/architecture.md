@@ -31,7 +31,7 @@ flowchart TB
         ZCLIENT["Zoho API Client<br/>(OAuth2, throttled,<br/>dry-run → approve → execute)"]
         subgraph Surfaces["Surfaces"]
             CLI["Symfony Console CLI"]
-            WEB["Slim Web UI<br/>(Plates + Tailwind + Alpine)<br/>review queues · receipts · viz"]
+            WEB["Slim Web UI<br/>(Plates + Tailwind + Alpine)<br/>served by FrankenPHP (Caddy + PHP,<br/>one container, D-027)<br/>review queues · receipts · viz"]
         end
     end
 
@@ -126,8 +126,10 @@ Alpine).
 | `public/` | Web root: front controller + static assets. |
 | `tests/` | Pest. `Unit/` runs anywhere; `Integration/` needs Postgres (D-021). |
 
-**Deployment shape** — local: everything in Lando. Hosted: Cloudflare
-(DNS/CDN/Access) fronts the app; compute on DO App Platform; DO Managed
-Postgres adjacent to compute; B2 for objects. Real instance behind Cloudflare
+**Deployment shape** — local: everything in Lando; FrankenPHP (Caddy with
+PHP embedded) serves web server and PHP runtime from a single container
+(D-027). Hosted: Cloudflare (DNS/CDN/Access) fronts the app; compute on DO
+App Platform, with FrankenPHP under evaluation as its runtime (D-027); DO
+Managed Postgres adjacent to compute; B2 for objects. Real instance behind Cloudflare
 Access; demo instance public with seeded synthetic data. Cloudflare-only
 hosting ruled out: no production PHP runtime on Workers.
